@@ -260,6 +260,120 @@ class ClientBase(object):
         return lambda *args, **kargs: self(method, *args, **kargs)
 
 
+class Worker(object):
+    """
+        Connect to a Switch as a worker, give: declare its service_name,
+        nickname, hostname, processid, stuff like that as well as how much
+        requests he is willing to handle.  If the Worker want more work, it can
+        periodically request more work in this way.
+        
+        A simple worker would say: i can accept one job, then request another
+        one.
+        
+        To reduce latencies, another worker could say: I can accept 100 request.
+        After receiving 50 requests, it can say hey I can accept 50 more
+        requests. Thus keeping the number of requests as high as possible on the
+        Switch.
+
+        (would that make any sense to reuse buffered channel?)
+
+
+        Each connection == a new zmq socket.
+    """
+    pass
+
+
+class Switch(object):
+    """
+        Bind a port and wait for both clients and workers.
+
+        When a worker declare itself, add it the list of workers available under
+        the worker service's name.
+
+        So for each service's name, there is set of workers (zmqid as a key, +
+        all the meta infos).
+
+        Each workers as a counter of how much request you can send. As soon as a
+        request is forwarded, this value is decremented. When its 0, well, you
+        simply don't talk to this worker anymore until the value bump again (or a
+        new worker arrive to help).
+
+        When selecting which worker to forward a requests to, simply take the
+        one with the biggest reserve of requests.
+
+        When a worker declare itself to the Switch, a heartbeat is running.
+
+        If the heartbeat is lost, the worker is considered faulty (requests
+        reset to 0, and some status updated for the concerned worker).
+
+        Workers at 0 requests available for more than 7 days by default are
+        removed.
+
+        When a client connect, the client declare for which service it want to
+        talks to. It also provide its name, hostname, pid... and other little
+        intimate details for debugging purpose.
+
+        An heartbeat is kept between the client and the switch. If the heartbeat
+        is lost, then the switch cleanup its information about the client. For
+        debugging purpose, the switch keep the details about dead client for an
+        hour but no more than 500 of them.
+
+        Thereafter, each time the client send a request, it forward it to the
+        next available worker for which the client registered.
+
+        If a client send a request without registering, its then talking
+        directly to the Switch itself. The switch can expose whatever shit it
+        wants.
+
+        Also the problem is that there is heartbeats between workers/client and
+        the switch. But also heartbeat between the client and the worker when a
+        channel is opened. So if heartbeats are stacked, then you never
+        know which was dropped.
+
+        The switch have to manipulate switching tables for channels between
+        clients and workers. A simple LRU with a TTL per entries of 3 times a
+        heartbeat should be enough.
+
+        Technical note:
+            I feel like client/worker registration shouldn't be implemented as a
+            zerorpc context. On the worker side, it wouldn't be too much a
+            problem, after all, if you get disconnected, reconnect, and
+            re-register. But on the client side, it would be really annoying to
+            get an heartbeat exception, trying to guess if it come from a loss
+            of connectivity with the switch or the worker at the end, and in
+            case of switch loss, having to re-request a context to the switch
+            and make sure that every code use the new context. The context would
+            have to be encapsulated anyway.
+
+            Thinking about it, maybe it would be great in fact. But heartbeat
+            failure need to be redesigned to be handled in a better way. For
+            example a channel should be closed in case of heartbeat error. This
+            part of the code need to be re-designed. Then SwitchClient would
+            just be a little convenience wrapper. It could even be possible to
+            add an optional parameter when opening a context to ask zerorpc to
+            generate an 'auto reconnect' context. Meaning that the context would
+            simply re-play the request whenever the connection is dropped (that
+            sound really exciting in fact).
+
+        """
+    pass
+
+
+class SwitchClient(object):
+    """
+        Connect to a Switch as a client, registering to talk to a give service.
+
+        When connecting, register its little info and declare for which service
+        it want to talk to.
+
+        If the heartbeat with the switch drop, re-register again and again.
+
+        When waiting for successful re-registration, every requests should be
+        blocked (thus everything like timeout & heartbeat can still kick in).
+    """
+    pass
+
+
 class Server(SocketBase, ServerBase):
 
     def __init__(self, methods=None, name=None, context=None, pool_size=None,
