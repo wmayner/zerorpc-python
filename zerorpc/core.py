@@ -278,7 +278,7 @@ class Worker(object):
         (would that make any sense to reuse buffered channel?)
 
 
-        Each connection == a new zmq socket.
+        Each connection to a different worker == a new zmq socket.
     """
     pass
 
@@ -287,19 +287,20 @@ class Switch(object):
     """
         Bind a port and wait for both clients and workers.
 
-        When a worker declare itself, add it the list of workers available under
-        the worker service's name.
+        When a worker declare itself, add it to the list of workers available
+        under the worker service's name.
 
         So for each service's name, there is set of workers (zmqid as a key, +
         all the meta infos).
 
-        Each workers as a counter of how much request you can send. As soon as a
-        request is forwarded, this value is decremented. When its 0, well, you
-        simply don't talk to this worker anymore until the value bump again (or a
-        new worker arrive to help).
+        For each workers there is a counter of how much request you can send ot
+        it. As soon as a request is forwarded, this value is decremented. When
+        its 0, well, you simply don't talk to this worker anymore until the
+        value bump again.
 
         When selecting which worker to forward a requests to, simply take the
-        one with the biggest reserve of requests.
+        one with the biggest reserve of requests available, and the last
+        recently used.
 
         When a worker declare itself to the Switch, a heartbeat is running.
 
@@ -355,6 +356,8 @@ class Switch(object):
             simply re-play the request whenever the connection is dropped (that
             sound really exciting in fact).
 
+
+
         """
     pass
 
@@ -370,6 +373,12 @@ class SwitchClient(object):
 
         When waiting for successful re-registration, every requests should be
         blocked (thus everything like timeout & heartbeat can still kick in).
+
+
+        We cant use a normal client (unless making zerorpc context way more
+        powerfull). Because a client need to request talking to a specific
+        service, and a worker need to register himself, and the bare metal
+        zerorpc interface of the switch is a monitoring interface.
     """
     pass
 
