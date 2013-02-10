@@ -1,8 +1,10 @@
 zerorpc
 =======
 
-.. image:: https://secure.travis-ci.org/dotcloud/zerorpc-python.png
-   :target: http://travis-ci.org/dotcloud/zerorpc-python
+.. note::
+    This is an experimental version of zerorpc-python which use zerorpc-core, a
+    non-less experimental implementation of the zerorpc logic and protocol in
+    to an independent and reusable library.
 
 Mailing list: zerorpc@googlegroups.com (https://groups.google.com/d/forum/zerorpc)
 
