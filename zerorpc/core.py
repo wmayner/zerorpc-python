@@ -163,7 +163,8 @@ class ServerBase(object):
     def _acceptor(self):
         while True:
             initial_event = self._multiplexer.recv()
-            self._task_pool.spawn(self._async_task, initial_event)
+            if initial_event.name is not None:  # ignore empty/probe events
+                self._task_pool.spawn(self._async_task, initial_event)
 
     def run(self):
         self._acceptor_task = gevent.spawn(self._acceptor)
@@ -261,6 +262,8 @@ class Server(SocketBase, ServerBase):
     def __init__(self, methods=None, name=None, context=None, pool_size=None,
             heartbeat=5):
         SocketBase.__init__(self, zmq.ROUTER, context)
+        if zmq.zmq_version_info() >= (4, 0, 0):
+            self._events.setsockopt(zmq.PROBE_ROUTER, 1)
         if methods is None:
             methods = self
 
@@ -278,7 +281,9 @@ class Client(SocketBase, ClientBase):
 
     def __init__(self, connect_to=None, context=None, timeout=30, heartbeat=5,
             passive_heartbeat=False):
-        SocketBase.__init__(self, zmq.DEALER, context=context)
+        #SocketBase.__init__(self, zmq.DEALER, context=context)
+        SocketBase.__init__(self, zmq.ROUTER, context=context)
+        # YEP!!!!! sweet :p
         ClientBase.__init__(self, self._events, context, timeout, heartbeat,
                 passive_heartbeat)
         if connect_to:
@@ -401,9 +406,8 @@ def fork_task_context(functor, context=None):
             - if the new task will make any zerorpc call, it should be wrapped.
     '''
     context = context or Context.get_instance()
-    header = context.hook_get_task_context()
-
+    xheader = context.hook_get_task_context()
     def wrapped(*args, **kargs):
-        context.hook_load_task_context(header)
+        context.hook_load_task_context(xheader)
         return functor(*args, **kargs)
     return wrapped

@@ -261,7 +261,6 @@ class BufferedChannel(ChannelBase):
             event = self._input_queue.get(timeout=timeout)
         except gevent.queue.Empty:
             raise TimeoutExpired(timeout)
-
         self._input_queue_reserved -= 1
         return event
 

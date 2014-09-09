@@ -37,7 +37,6 @@ from .context import Context
 from .channel_base import ChannelBase
 
 
-
 class SequentialSender(object):
 
     def __init__(self, socket):
@@ -312,7 +311,11 @@ class Events(ChannelBase):
         else:
             identity = None
             blob = parts[0]
-        event = Event.unpack(blob)
+        if blob:
+            event = Event.unpack(blob)
+        else:
+            # An empty event (likely a probe event)
+            event = Event(None, None, None, {})
         event.identity = identity
         return event
 
